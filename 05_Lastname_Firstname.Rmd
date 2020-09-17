@@ -1,6 +1,6 @@
 ---
 title: "Homework: Manipulating Data"
-author: "Firstname Lastname"
+author: "Oliver Titus"
 output: html_document
 ---
 
@@ -53,6 +53,18 @@ If you are interested, you can use the `nsyllable` function in the R package `qu
 Hints: `stringr` is the package for text manipulation. `str_split` will split lines into words. You may also find `unnest` from the `tidyr` package to be useful 
 
 You can get a preview of next week's material that covers `stringr` in more detail [here](https://srvanderplas.github.io/unl-stat850/transforming-data.html#string-operations-creating-new-variables-and-separating-multi-variable-columns)
+
+```{r, echo=TRUE}
+library(tidyverse)
+library(stringr)
+library(knitr)
+raven <- read_lines("the_raven_poe.txt")
+tbraven <- tibble(raven)
+tbraven %>% kable
+data <- tbraven %>% mutate(words=str_count(tbraven$raven, '[ -]')+1)
+data %>% group_by(words>1) %>% mutate(linenumber = 1:n()) %>% kable 
+data %>% group_by(words<=6&words>1) %>% mutate(linenumber = 1:n()) %>% kable
+```
 
 ## Superstitions?
 
