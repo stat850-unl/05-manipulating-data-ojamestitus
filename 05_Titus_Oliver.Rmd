@@ -1,0 +1,211 @@
+---
+title: "Homework: Manipulating Data"
+author: "Oliver Titus"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(digits = 3)
+```
+
+
+```{r load-sas-libraries, echo = F, message = F, warning = F}
+
+library(SASmarkdown)
+sas_enginesetup(sashtml=sashtml)
+
+sasexe <- "C:/Program Files/SASHome/SASFoundation/9.4/sas.exe"
+sasopts <- "-nosplash -ls 75"
+
+# Linux options (for grading, please leave this in!)
+# sasexe <- "/usr/local/SASHome/SASFoundation/9.4/bin/sas_en"
+# sasopts <- "-ls 75"
+```
+
+## Instructions
+
+When you are finished with the assignment: 
+
+1. Save the file as 05_Lastname_Firstname.Rmd and compile it
+2. Commit the Rmd file and corresponding html file to your homework git repo
+3. Push the commit to github
+4. Locate the Rmd file on github and click on the SHA link for the file
+5. Paste the url of the resulting page into Canvas to submit your assignment.
+
+Your assignment must compile on a different computer as long as the saspath is set correctly for that machine. This means you will need to use a local file path when you read the data in via R (and SAS). 
+
+## Poetry? The `R`aven
+(In case it isn't obvious, do this part in R)
+
+> "The Raven" is a narrative poem by American writer Edgar Allan Poe. First published in January 1845, the poem is often noted for its musicality, stylized language, and supernatural atmosphere. Sitting on a bust of Pallas, the raven seems to further distress the protagonist with its constant repetition of the word "Nevermore". The poem makes use of folk, mythological, religious, and classical references. -- [Wikipedia](https://en.wikipedia.org/wiki/The_Raven)
+
+Read in the lines of text in "The Raven" and write code to do the following tasks:
+
+1. Create a tibble with a column that contains the lines of the poem (leave the blank lines in for now)
+2. Count the number of words in each line. Do you see any patterns?
+3. Can you use this information to create a variable with stanza numbers?
+4. Create a column with line numbers (within each stanza)
+5. Split the lines of the poem into words (you can discard punctuation). Is there any discernible pattern?
+
+If you are interested, you can use the `nsyllable` function in the R package `quanteda` to get syllable counts and continue the exploration. 
+
+Hints: `stringr` is the package for text manipulation. `str_split` will split lines into words. You may also find `unnest` from the `tidyr` package to be useful 
+
+You can get a preview of next week's material that covers `stringr` in more detail [here](https://srvanderplas.github.io/unl-stat850/transforming-data.html#string-operations-creating-new-variables-and-separating-multi-variable-columns)
+
+
+## Reading in the poem and storing into a tibble.
+```{r, echo=TRUE}
+library(tidyverse)
+library(stringr)
+library(knitr)
+raven <- read_lines("the_raven_poe.txt")
+tbraven <- tibble(raven)
+```
+
+## Counting the words in each line
+```{r, echo=TRUE}
+wordcount <- tbraven %>% mutate(words=str_count(tbraven$raven, '[ -]')+1)
+```
+The last line is always less than or equal to six. We'll use this information to count the stanzas.
+
+## Counting the stanzas
+```{r, echo=TRUE}
+stanzacount <- wordcount %>% mutate(stanzanums=cumsum(words==1)+1)
+```
+
+## Cunting the lines
+
+```{r, echo=TRUE}
+fulldata<- stanzacount %>% mutate(linenumber = cumsum(words>1)) 
+```
+
+## Full poem data set
+
+```{r, echo=TRUE}
+fulldata %>% kable()
+```
+
+## Splitting the lines into words
+```{r, echo=TRUE}
+linewords <- fulldata %>% mutate(splitwords = str_split(raven, " ")) %>% unnest(splitwords)
+
+nopunctwords <- linewords %>% mutate(nopunct = str_remove_all(splitwords, "[:punct:]"))
+```
+
+## Occurences of Raven
+
+```{r, echo=TRUE}
+linecontainsraven <- nopunctwords %>% mutate(ravencount = str_detect(nopunct, "Raven"))
+ggplot(linecontainsraven, aes(x=linenumber, y=ravencount)) + geom_point()
+```
+
+
+The plot above looks at where the word "Raven" shows up. True indicating that it's in that line and false otherwise. That word doesn't show until after line 30.
+
+## Superstitions?
+
+Five Thirty Eight published a story called ["Some people are too superstitious to have a baby on Friday the 13th"](http://fivethirtyeight.com/features/some-people-are-too-superstitious-to-have-a-baby-on-friday-the-13th/), and, along with the story, they published the data to [this github repo](https://github.com/fivethirtyeight/data/tree/master/births). Download one of the CSVs in the repository and read it into SAS. 
+
+1. Aggregate the data by month - is there any difference in the average number of births each month, across different months?
+```{r, engine="sashtml", engine.path=sasexe, engine.opts=sasopts, collectcode = T, error = T}
+proc import datafile = "US_births_1994-2003_CDC_NCHS.csv"
+	out = births
+    dbms = csv replace;
+	getnames = yes;
+RUN;
+
+proc means;
+title "Mean Births by Month";
+var births;
+class month;
+run;
+```
+
+
+```{r, engine="sashtml", engine.path=sasexe, engine.opts=sasopts, collectcode=T, error = T}
+proc anova;
+class month;
+model births=month;
+run; 
+```
+
+The mean births for each month are listed above. The overall F-test returns a value of 10.3 with a corresponding p-value of less than 0.0001 which implies that that at least one of the means births for each months are different. We can see from the box plot that there is some variation in the birth rates across different months with September having the highest mean birth rate and January having the lowest mean birth rate.
+
+2. Aggregate the data by day of the week. Are there any days of the week that are less likely to have births?
+
+```{r, engine="sashtml", engine.path=sasexe, engine.opts=sasopts, collectcode=T, error = T}
+proc means;
+title "Mean Births by Day of Week";
+var births;
+class day_of_week;
+run;
+```
+
+Looking at the mean birth rate for each day of the week, we see that the weekends have lower births on average with Sunday having the lowest.
+
+
+3. Compute the day of the year (so Feb 1 would be 32, June 25 would be 176 if the year isn't a leap year, and 177 otherwise, and so on). What can you say about overall trends based on the day of the year? Are there any that would not be attributable to regular holidays, such as Memorial day, Labor Day, and Christmas? (Thanksgiving and Easter rotate around a bit more). Bonus points if you can figure out a macro that will compute this based on the year, month, and date.
+
+```{r, engine="sashtml", engine.path=sasexe, engine.opts=sasopts, collectcode=T, error = T}
+data births1;
+set births;
+day_of_year + 1;
+by year;
+if first.year then day_of_year =1;
+run;
+
+proc print
+data=births1 (obs=367);
+run;
+```
+
+```{r, engine="sashtml", engine.path=sasexe, engine.opts=sasopts, collectcode=T, error = T}
+proc means;
+var births;
+class day_of_year;
+run;
+```
+
+```{r, engine="sashtml", engine.path=sasexe, engine.opts=sasopts, collectcode=T, error = T}
+proc anova;
+class day_of_year;
+model births=day_of_year;
+run;
+```
+
+Overall, there is no difference between the birth rate across each day with the exception of holidays. The overall F-test returns a value of 0.78 and corresponding p-value if 0.9991, so we fail to reject the null hypothesis that the mean birth rate is the same across each day.
+
+4. Think through some way to numerically compare the births on Fridays (not the 13th) with births on Fridays that are the 13th. You can fit a model, compute means and subtract them -- whatever you think is appropriate. I will evaluate you on your code and logic, not on your statistical skills. 
+
+```{r, engine="sashtml", engine.path=sasexe, engine.opts=sasopts, collectcode=T, error = T}
+proc sql;
+create table fri13 AS
+select date_of_month, day_of_week, births from births
+where date_of_month=13 and day_of_week=5;
+ 
+proc sql;
+create table fri AS
+select date_of_month, day_of_week, births from births
+where day_of_week=5 and date_of_month~=13;
+
+proc print data=fri (obs=50);
+run;
+
+proc print data= fri13;
+run;
+```
+
+
+```{r, engine="sashtml", engine.path=sasexe, engine.opts=sasopts, collectcode=T, error = T}
+proc means data=fri;
+var births;
+run;
+
+proc means data=fri13;
+var births;
+run;
+```
+
+The difference between births on Friday the 13th and births on other Fridays is -577.72, so there is 577.72 less births on average on Friday the 13th compared to other Fridays. I'm not sure how to do a t-test with this since these are coming from two different data sets.
