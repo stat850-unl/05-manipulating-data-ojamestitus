@@ -75,11 +75,13 @@ The last line is always less than or equal to six. We'll use this information to
 stanzacount <- wordcount %>% mutate(stanzanums=cumsum(words==1)+1)
 ```
 
-## Cunting the lines
+## Counting the lines
 
 ```{r, echo=TRUE}
 fulldata<- stanzacount %>% mutate(linenumber = cumsum(words>1)) 
 ```
+
+> Here, you were supposed to count the lines within stanzas. You need to group_by(stanzanums) and then do mutate(linenumber = 1:n()). 
 
 ## Full poem data set
 
@@ -177,6 +179,9 @@ run;
 
 Overall, there is no difference between the birth rate across each day with the exception of holidays. The overall F-test returns a value of 0.78 and corresponding p-value if 0.9991, so we fail to reject the null hypothesis that the mean birth rate is the same across each day.
 
+> You could also create a summary dataset with mean number of births per day. A line graph using that dataset would give you a much clearer picture of the patterns (see the key). The graphical form you use affects what you see in your data!
+
+
 4. Think through some way to numerically compare the births on Fridays (not the 13th) with births on Fridays that are the 13th. You can fit a model, compute means and subtract them -- whatever you think is appropriate. I will evaluate you on your code and logic, not on your statistical skills. 
 
 ```{r, engine="sashtml", engine.path=sasexe, engine.opts=sasopts, collectcode=T, error = T}
@@ -209,3 +214,5 @@ run;
 ```
 
 The difference between births on Friday the 13th and births on other Fridays is -577.72, so there is 577.72 less births on average on Friday the 13th compared to other Fridays. I'm not sure how to do a t-test with this since these are coming from two different data sets.
+
+> You'd fit a linear model with friday the 13th as a predictor along with day of the week, month of the year, and even potentially holiday status. :) Then you can do a test for just the coefficient of the friday the 13th variable. 
